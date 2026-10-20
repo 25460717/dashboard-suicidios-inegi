@@ -1,0 +1,5 @@
+id_servicio,fecha_hora,categoria_vehiculo,tipo_lavado,precio,metodo_pago,lavador,duracion_minutos
+LAV-0001,2026-10-18 10:49:12,Carro (Pequeño/Mediano),Con brillo y cera,110.0,Efectivo,Pedro,25
+LAV-0002,2026-10-19 21:07:45,Carro (Pequeño/Mediano),Con brillo y cera,110.0,Efectivo,Pedro,20
+LAV-0003,2026-10-19 21:07:47,Carro (Pequeño/Mediano),Normal,90.0,Efectivo,Carlos,25
+LAV-0004,2026-10-19 21:08:44,Moto,Con brillo y cera,100.0,Efectivo,Carlos,15
