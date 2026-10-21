@@ -7,27 +7,28 @@ import streamlit as st
 # CONFIGURACIÓN DE LA PÁGINA STREAMLIT
 # ==============================================================================
 st.set_page_config(
-    page_title="Dashboard Suicidios INEGI", page_icon="🧠", layout="wide"
+    page_title="Dashboard Suicidios INEGI",
+    page_icon="🧠",
+    layout="wide"
 )
-
 
 # ==============================================================================
 # 1. CAPA DE BACKEND: CARGA Y LIMPIEZA DE DATOS CON @st.cache_data
 # ==============================================================================
 @st.cache_data
 def cargar_y_limpiar_datos(filepath: str) -> pd.DataFrame:
-    """Carga el archivo Excel del INEGI, procesa su estructura matricial
-
+    """
+    Carga el archivo Excel del INEGI, procesa su estructura matricial
     y la transforma en un DataFrame tabular limpio.
     """
-    df_raw = pd.read_excel(filepath, header=None)
+    df_excel = pd.read_excel(filepath, header=None)
 
     # Extraer años (Fila index 6) y sexos (Fila index 7)
-    years = df_raw.iloc[6].values
-    sexes = df_raw.iloc[7].values
+    years = df_excel.iloc[6].values
+    sexes = df_excel.iloc[7].values
 
     # Filas con los datos de las causas (Filas 8 a 12)
-    data_rows = df_raw.iloc[8:13].copy()
+    data_rows = df_excel.iloc[8:13].copy()
 
     records = []
     for _, row in data_rows.iterrows():
@@ -64,8 +65,8 @@ for ruta in posibles_rutas:
         archivo_encontrado = ruta
         break
 
-if archivo_encontrado:
-    df_raw = cargar_y_limpiar_datos(archivo_encontrado)
+if archivo_encontrado is not None:
+    df_datos = cargar_y_limpiar_datos(archivo_encontrado)
 else:
     st.error(
         "❌ No se encontró el archivo Excel 'Mental_07 (1).xlsx'. Verifica que esté dentro de la carpeta del proyecto."
@@ -74,13 +75,16 @@ else:
 
 
 # ==============================================================================
-# 2. CAPA DE FRONTEND: WIDGETS Y FILTROS INTERACTIVOS
+# 2. CAPA DE FRONTEND: TITULAR, SUBTÍTULO Y WIDGETS DE FILTRADO
 # ==============================================================================
 st.title("🧠 Dashboard de Defunciones por Suicidio (INEGI)")
+st.markdown("### **Análisis de datos registrados en Colima durante el periodo 2019 - 2021**")
+st.caption("Visualización interactiva sobre causas de defunción por género y evolución temporal.")
+
 st.sidebar.header("Filtros de Control")
 
 # Widget 1: Selección de Año (Multiselect)
-anios_disponibles = sorted(df_raw["Año"].unique().tolist())
+anios_disponibles = sorted(df_datos["Año"].unique().tolist())
 anio_sel = st.sidebar.multiselect(
     "Selecciona el Año:",
     options=anios_disponibles,
@@ -88,7 +92,7 @@ anio_sel = st.sidebar.multiselect(
 )
 
 # Widget 2: Selección de Causa (Multiselect)
-causas_disponibles = [c for c in df_raw["Causa"].unique() if c != "Total"]
+causas_disponibles = [c for c in df_datos["Causa"].unique() if c != "Total"]
 causa_sel = st.sidebar.multiselect(
     "Selecciona la Causa:",
     options=causas_disponibles,
@@ -96,10 +100,10 @@ causa_sel = st.sidebar.multiselect(
 )
 
 # Aplicar filtros al DataFrame
-df_filtrado = df_raw[
-    (df_raw["Año"].isin(anio_sel))
-    & (df_raw["Causa"].isin(causa_sel))
-    & (df_raw["Sexo"] != "Total")
+df_filtrado = df_datos[
+    (df_datos["Año"].isin(anio_sel))
+    & (df_datos["Causa"].isin(causa_sel))
+    & (df_datos["Sexo"] != "Total")
 ]
 
 
@@ -109,7 +113,7 @@ df_filtrado = df_raw[
 col1, col2 = st.columns(2)
 
 total_defunciones = df_filtrado["Defunciones"].sum()
-col1.metric("Total Registrado", f"{total_defunciones} casos")
+col1.metric("Total Registrado (2019-2021)", f"{total_defunciones} casos")
 
 if not df_filtrado.empty and total_defunciones > 0:
     top_causa = df_filtrado.groupby("Causa")["Defunciones"].sum().idxmax()
@@ -135,7 +139,7 @@ with col_g1:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 with col_g2:
-    st.subheader("Tendencia Temporal por Año")
+    st.subheader("Tendencia Temporal (2019-2021)")
     df_tendencia = df_filtrado.groupby("Año")["Defunciones"].sum().reset_index()
     fig_line = px.line(
         df_tendencia,
