@@ -13,27 +13,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados para permitir texto completo y dinámico en las tarjetas KPI
+# Estilos CSS avanzados para un aspecto "Executive/Premium"
 st.markdown("""
     <style>
-    /* Ajusta el tamaño del texto del KPI para que no se recorte */
-    [data-testid="stMetricValue"] {
-        font-size: 18px !important;
-        font-weight: bold;
-        color: #1E88E5;
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        line-height: 1.3;
-    }
-    .stMetric {
-        background-color: rgba(255, 255, 255, 0.05);
-        padding: 12px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        min-height: 110px;
+    /* Estilo para las tarjetas de KPI personalizadas */
+    .kpi-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-height: 120px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: center;
+    }
+    .kpi-title {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #A0AEC0;
+        margin-bottom: 6px;
+    }
+    .kpi-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #3182CE;
+        line-height: 1.2;
+    }
+    .kpi-subtext {
+        font-size: 11px;
+        color: #718096;
+        margin-top: 4px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -129,34 +143,64 @@ df_filtrado = df_datos[
 
 
 # ==============================================================================
-# 3. KPIS PRINCIPALES DE IMPACTO (TEXTOS COMPLETOS)
+# 3. KPIS PRINCIPALES CON TARJETAS PREMIUM
 # ==============================================================================
 col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
 
 total_defunciones = df_filtrado["Defunciones"].sum()
-col_kpi1.metric("Total Registrado", f"{total_defunciones} casos")
 
 if not df_filtrado.empty and total_defunciones > 0:
     top_causa = df_filtrado.groupby("Causa")["Defunciones"].sum().idxmax()
-    col_kpi2.metric("Causa Principal", top_causa)
-    
     porcentaje_hombres = (
         df_filtrado[df_filtrado["Sexo"] == "Hombres"]["Defunciones"].sum() / total_defunciones * 100
     )
-    col_kpi3.metric("Proporción Hombres", f"{porcentaje_hombres:.1f}%")
-    
     promedio_anual = total_defunciones / len(anio_sel) if len(anio_sel) > 0 else 0
-    col_kpi4.metric("Promedio Anual", f"{promedio_anual:.1f} casos/año")
 else:
-    col_kpi2.metric("Causa Principal", "Sin datos")
-    col_kpi3.metric("Proporción Hombres", "0%")
-    col_kpi4.metric("Promedio Anual", "0 casos")
+    top_causa = "Sin datos"
+    porcentaje_hombres = 0
+    promedio_anual = 0
+
+with col_kpi1:
+    st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">📊 Total Registrado</div>
+            <div class="kpi-value">{total_defunciones} casos</div>
+            <div class="kpi-subtext">Periodo seleccionado</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi2:
+    st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">⚠️ Causa Principal</div>
+            <div class="kpi-value">{top_causa}</div>
+            <div class="kpi-subtext">Mayor número de incidencias</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi3:
+    st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">👨 Proporción Hombres</div>
+            <div class="kpi-value">{porcentaje_hombres:.1f}%</div>
+            <div class="kpi-subtext">Del total de casos</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+with col_kpi4:
+    st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-title">📅 Promedio Anual</div>
+            <div class="kpi-value">{promedio_anual:.1f} casos/año</div>
+            <div class="kpi-subtext">Frecuencia por año</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
 
 # ==============================================================================
-# 4. ESTRUCTURA EN PESTAÑAS (TABS) PARA MEJOR NAVEGACIÓN
+# 4. PESTAÑAS Y GRÁFICOS INTERACTIVOS
 # ==============================================================================
 tab1, tab2, tab3 = st.tabs(["📊 Vista General", "📈 Tendencias Temporales", "📄 Datos Detallados"])
 
