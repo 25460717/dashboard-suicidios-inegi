@@ -13,19 +13,27 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados para tarjetas de KPI visualmente atractivas
+# Estilos CSS personalizados para permitir texto completo y dinámico en las tarjetas KPI
 st.markdown("""
     <style>
+    /* Ajusta el tamaño del texto del KPI para que no se recorte */
     [data-testid="stMetricValue"] {
-        font-size: 28px;
+        font-size: 18px !important;
         font-weight: bold;
         color: #1E88E5;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.3;
     }
     .stMetric {
         background-color: rgba(255, 255, 255, 0.05);
-        padding: 15px;
+        padding: 12px;
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
+        min-height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -121,7 +129,7 @@ df_filtrado = df_datos[
 
 
 # ==============================================================================
-# 3. KPIS PRINCIPALES DE IMPACTO
+# 3. KPIS PRINCIPALES DE IMPACTO (TEXTOS COMPLETOS)
 # ==============================================================================
 col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
 
@@ -215,7 +223,7 @@ with tab3:
     st.subheader("Registro de Datos Procesados")
     st.dataframe(df_filtrado, use_container_width=True)
     
-    # Botón de descarga CSV para dar un valor agregado profesional
+    # Botón de descarga CSV
     csv = df_filtrado.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Descargar datos filtrados en CSV",
