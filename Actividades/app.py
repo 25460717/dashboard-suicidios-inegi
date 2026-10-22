@@ -9,10 +9,28 @@ import streamlit as st
 st.set_page_config(
     page_title="Dashboard Suicidios INEGI",
     page_icon="🧠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Mapa de colores unificado para mantener consistencia visual
+# Estilos CSS personalizados para tarjetas de KPI visualmente atractivas
+st.markdown("""
+    <style>
+    [data-testid="stMetricValue"] {
+        font-size: 28px;
+        font-weight: bold;
+        color: #1E88E5;
+    }
+    .stMetric {
+        background-color: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Mapa de colores unificado
 COLOR_DISCRETE_MAP = {
     "Hombres": "#2B5C8F",
     "Mujeres": "#D95D39",
@@ -72,14 +90,13 @@ else:
 
 
 # ==============================================================================
-# 2. CAPA DE FRONTEND: FILTROS Y JERARQUÍA VISUAL
+# 2. CAPA DE FRONTEND: FILTROS Y BARRA LATERAL
 # ==============================================================================
 st.title("🧠 Dashboard de Defunciones por Suicidio (INEGI)")
-st.markdown("### **Análisis de datos registrados en Colima (2019 - 2021)**")
-st.caption("Herramienta interactiva para el análisis de causa de defunción por género y tendencia temporal.")
+st.markdown("### **Análisis de Mortalidad en Colima (2019 - 2021)**")
+st.caption("Visualización interactiva e inteligibilidad de datos para la toma de decisiones en salud pública.")
 
-# Filtros en la barra lateral
-st.sidebar.header("Filtros de Control")
+st.sidebar.header("⚙️ Filtros de Control")
 
 anios_disponibles = sorted(df_datos["Año"].unique().tolist())
 anio_sel = st.sidebar.multiselect(
@@ -104,9 +121,9 @@ df_filtrado = df_datos[
 
 
 # ==============================================================================
-# 3. METRICAS / KPIS PRINCIPALES (JERARQUÍA VISUAL MÁS ALTA)
+# 3. KPIS PRINCIPALES DE IMPACTO
 # ==============================================================================
-col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
 
 total_defunciones = df_filtrado["Defunciones"].sum()
 col_kpi1.metric("Total Registrado", f"{total_defunciones} casos")
@@ -119,41 +136,62 @@ if not df_filtrado.empty and total_defunciones > 0:
         df_filtrado[df_filtrado["Sexo"] == "Hombres"]["Defunciones"].sum() / total_defunciones * 100
     )
     col_kpi3.metric("Proporción Hombres", f"{porcentaje_hombres:.1f}%")
+    
+    promedio_anual = total_defunciones / len(anio_sel) if len(anio_sel) > 0 else 0
+    col_kpi4.metric("Promedio Anual", f"{promedio_anual:.1f} casos/año")
 else:
     col_kpi2.metric("Causa Principal", "Sin datos")
     col_kpi3.metric("Proporción Hombres", "0%")
+    col_kpi4.metric("Promedio Anual", "0 casos")
 
 st.divider()
 
 
 # ==============================================================================
-# 4. GRÁFICOS Y INSIGHTS DE APOYO
+# 4. ESTRUCTURA EN PESTAÑAS (TABS) PARA MEJOR NAVEGACIÓN
 # ==============================================================================
-col_g1, col_g2 = st.columns(2)
+tab1, tab2, tab3 = st.tabs(["📊 Vista General", "📈 Tendencias Temporales", "📄 Datos Detallados"])
 
-with col_g1:
-    st.subheader("1. Distribución por Causa y Sexo")
-    fig_bar = px.bar(
-        df_filtrado,
-        x="Causa",
-        y="Defunciones",
-        color="Sexo",
-        barmode="group",
-        labels={"Defunciones": "Número de Casos", "Causa": "Causa Registrada", "Sexo": "Género"},
-        color_discrete_map=COLOR_DISCRETE_MAP,
-    )
-    fig_bar.update_layout(
-        xaxis_title="Causa de Defunción",
-        yaxis_title="Número de Casos",
-        legend_title_text="Género"
-    )
-    st.plotly_chart(fig_bar, use_container_width=True)
-    
-    # Texto de apoyo con insight clave (Punto 3)
-    st.caption("📌 **Insight:** El ahorcamiento, estrangulamiento o sofocación representa la causa predominante en la entidad, registrando un volumen considerablemente superior en la población masculina.")
+with tab1:
+    col_g1, col_g2 = st.columns(2)
 
-with col_g2:
-    st.subheader("2. Evolución Temporal del Periodo")
+    with col_g1:
+        st.subheader("Distribución por Causa y Sexo")
+        fig_bar = px.bar(
+            df_filtrado,
+            x="Causa",
+            y="Defunciones",
+            color="Sexo",
+            barmode="group",
+            text_auto=True,
+            labels={"Defunciones": "Número de Casos", "Causa": "Causa Registrada", "Sexo": "Género"},
+            color_discrete_map=COLOR_DISCRETE_MAP,
+        )
+        fig_bar.update_layout(
+            xaxis_title="Causa de Defunción",
+            yaxis_title="Número de Casos",
+            legend_title_text="Género"
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+        st.caption("📌 **Insight:** La asfixia por ahorcamiento representa el porcentaje mayoritario de los casos registrados, afectando en mayor proporción a los hombres.")
+
+    with col_g2:
+        st.subheader("Proporción de Casos por Género")
+        df_sexo = df_filtrado.groupby("Sexo")["Defunciones"].sum().reset_index()
+        fig_pie = px.pie(
+            df_sexo,
+            values="Defunciones",
+            names="Sexo",
+            hole=0.4,
+            color="Sexo",
+            color_discrete_map=COLOR_DISCRETE_MAP
+        )
+        fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig_pie, use_container_width=True)
+        st.caption("📌 **Insight:** La brecha de género es notablemente amplia, con más del 80% de los registros concentrados en la población masculina.")
+
+with tab2:
+    st.subheader("Evolución Temporal del Periodo")
     df_tendencia = df_filtrado.groupby(["Año", "Sexo"])["Defunciones"].sum().reset_index()
     fig_line = px.line(
         df_tendencia,
@@ -171,13 +209,20 @@ with col_g2:
         legend_title_text="Género"
     )
     st.plotly_chart(fig_line, use_container_width=True)
+    st.caption("📌 **Insight:** Durante el periodo 2019-2021 se observa un incremento sostenido en la tendencia anual, especialmente en la incidencia masculina.")
+
+with tab3:
+    st.subheader("Registro de Datos Procesados")
+    st.dataframe(df_filtrado, use_container_width=True)
     
-    # Texto de apoyo con insight clave (Punto 3)
-    st.caption("📌 **Insight:** La tendencia histórica muestra una brecha persistente entre géneros, permitiendo identificar variaciones anuales en los registros totales de la región.")
+    # Botón de descarga CSV para dar un valor agregado profesional
+    csv = df_filtrado.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Descargar datos filtrados en CSV",
+        data=csv,
+        file_name='datos_suicidios_colima.csv',
+        mime='text/csv',
+    )
 
 st.markdown("---")
 st.caption("Fuente de datos: Instituto Nacional de Estadística y Geografía (INEGI) — Registros de Mortalidad en Colima.")
-
-# Tabla de datos
-with st.expander("📄 Ver Datos Registrados (Tabla Completa)"):
-    st.dataframe(df_filtrado, use_container_width=True)
