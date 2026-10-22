@@ -4,7 +4,7 @@ import plotly.express as px
 import streamlit as st
 
 # ==============================================================================
-# CONFIGURACIÓN DE LA PÁGINA STREAMLIT
+# CONFIGURACIÓN DE LA PÁGINA
 # ==============================================================================
 st.set_page_config(
     page_title="Dashboard Suicidios INEGI",
@@ -12,22 +12,22 @@ st.set_page_config(
     layout="wide"
 )
 
+# Mapa de colores unificado para mantener consistencia visual
+COLOR_DISCRETE_MAP = {
+    "Hombres": "#2B5C8F",
+    "Mujeres": "#D95D39",
+    "No especificado": "#8D99AE"
+}
+
 # ==============================================================================
-# 1. CAPA DE BACKEND: CARGA Y LIMPIEZA DE DATOS CON @st.cache_data
+# 1. CAPA DE BACKEND: CARGA Y LIMPIEZA DE DATOS
 # ==============================================================================
 @st.cache_data
 def cargar_y_limpiar_datos(filepath: str) -> pd.DataFrame:
-    """
-    Carga el archivo Excel del INEGI, procesa su estructura matricial
-    y la transforma en un DataFrame tabular limpio.
-    """
     df_excel = pd.read_excel(filepath, header=None)
 
-    # Extraer años (Fila index 6) y sexos (Fila index 7)
     years = df_excel.iloc[6].values
     sexes = df_excel.iloc[7].values
-
-    # Filas con los datos de las causas (Filas 8 a 12)
     data_rows = df_excel.iloc[8:13].copy()
 
     records = []
@@ -51,12 +51,11 @@ def cargar_y_limpiar_datos(filepath: str) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-# Búsqueda flexible del archivo para evitar errores de ruta (FileNotFoundError)
 posibles_rutas = [
     "Mental_07 (1).xlsx",
-    "../Mental_07 (1).xlsx",
+    "Actividades/Mental_07 (1).xlsx",
     "Mental_07.xlsx",
-    "../Mental_07.xlsx",
+    "Actividades/Mental_07.xlsx"
 ]
 
 archivo_encontrado = None
@@ -68,22 +67,20 @@ for ruta in posibles_rutas:
 if archivo_encontrado is not None:
     df_datos = cargar_y_limpiar_datos(archivo_encontrado)
 else:
-    st.error(
-        "❌ No se encontró el archivo Excel 'Mental_07 (1).xlsx'. Verifica que esté dentro de la carpeta del proyecto."
-    )
+    st.error("❌ No se encontró el archivo 'Mental_07 (1).xlsx'. Verifica la raíz del repositorio.")
     st.stop()
 
 
 # ==============================================================================
-# 2. CAPA DE FRONTEND: TITULAR, SUBTÍTULO Y WIDGETS DE FILTRADO
+# 2. CAPA DE FRONTEND: FILTROS Y JERARQUÍA VISUAL
 # ==============================================================================
 st.title("🧠 Dashboard de Defunciones por Suicidio (INEGI)")
-st.markdown("### **Análisis de datos registrados en Colima durante el periodo 2019 - 2021**")
-st.caption("Visualización interactiva sobre causas de defunción por género y evolución temporal.")
+st.markdown("### **Análisis de datos registrados en Colima (2019 - 2021)**")
+st.caption("Herramienta interactiva para el análisis de causa de defunción por género y tendencia temporal.")
 
+# Filtros en la barra lateral
 st.sidebar.header("Filtros de Control")
 
-# Widget 1: Selección de Año (Multiselect)
 anios_disponibles = sorted(df_datos["Año"].unique().tolist())
 anio_sel = st.sidebar.multiselect(
     "Selecciona el Año:",
@@ -91,7 +88,6 @@ anio_sel = st.sidebar.multiselect(
     default=anios_disponibles,
 )
 
-# Widget 2: Selección de Causa (Multiselect)
 causas_disponibles = [c for c in df_datos["Causa"].unique() if c != "Total"]
 causa_sel = st.sidebar.multiselect(
     "Selecciona la Causa:",
@@ -99,7 +95,7 @@ causa_sel = st.sidebar.multiselect(
     default=causas_disponibles,
 )
 
-# Aplicar filtros al DataFrame
+# Filtrado de datos
 df_filtrado = df_datos[
     (df_datos["Año"].isin(anio_sel))
     & (df_datos["Causa"].isin(causa_sel))
@@ -108,48 +104,80 @@ df_filtrado = df_datos[
 
 
 # ==============================================================================
-# 3. CAPA DE FRONTEND: KPIS Y GRÁFICOS INTERACTIVOS (PLOTLY)
+# 3. METRICAS / KPIS PRINCIPALES (JERARQUÍA VISUAL MÁS ALTA)
 # ==============================================================================
-col1, col2 = st.columns(2)
+col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
 
 total_defunciones = df_filtrado["Defunciones"].sum()
-col1.metric("Total Registrado (2019-2021)", f"{total_defunciones} casos")
+col_kpi1.metric("Total Registrado", f"{total_defunciones} casos")
 
 if not df_filtrado.empty and total_defunciones > 0:
     top_causa = df_filtrado.groupby("Causa")["Defunciones"].sum().idxmax()
-    col2.metric("Causa con Mayor Incidencia", top_causa)
+    col_kpi2.metric("Causa Principal", top_causa)
+    
+    porcentaje_hombres = (
+        df_filtrado[df_filtrado["Sexo"] == "Hombres"]["Defunciones"].sum() / total_defunciones * 100
+    )
+    col_kpi3.metric("Proporción Hombres", f"{porcentaje_hombres:.1f}%")
 else:
-    col2.metric("Causa con Mayor Incidencia", "Sin datos")
+    col_kpi2.metric("Causa Principal", "Sin datos")
+    col_kpi3.metric("Proporción Hombres", "0%")
 
 st.divider()
 
+
+# ==============================================================================
+# 4. GRÁFICOS Y INSIGHTS DE APOYO
+# ==============================================================================
 col_g1, col_g2 = st.columns(2)
 
 with col_g1:
-    st.subheader("Distribución por Causa y Sexo")
+    st.subheader("1. Distribución por Causa y Sexo")
     fig_bar = px.bar(
         df_filtrado,
         x="Causa",
         y="Defunciones",
         color="Sexo",
         barmode="group",
-        labels={"Defunciones": "Casos", "Causa": "Causa de Defunción"},
-        color_discrete_sequence=px.colors.qualitative.Set2,
+        labels={"Defunciones": "Número de Casos", "Causa": "Causa Registrada", "Sexo": "Género"},
+        color_discrete_map=COLOR_DISCRETE_MAP,
+    )
+    fig_bar.update_layout(
+        xaxis_title="Causa de Defunción",
+        yaxis_title="Número de Casos",
+        legend_title_text="Género"
     )
     st.plotly_chart(fig_bar, use_container_width=True)
+    
+    # Texto de apoyo con insight clave (Punto 3)
+    st.caption("📌 **Insight:** El ahorcamiento, estrangulamiento o sofocación representa la causa predominante en la entidad, registrando un volumen considerablemente superior en la población masculina.")
 
 with col_g2:
-    st.subheader("Tendencia Temporal (2019-2021)")
-    df_tendencia = df_filtrado.groupby("Año")["Defunciones"].sum().reset_index()
+    st.subheader("2. Evolución Temporal del Periodo")
+    df_tendencia = df_filtrado.groupby(["Año", "Sexo"])["Defunciones"].sum().reset_index()
     fig_line = px.line(
         df_tendencia,
         x="Año",
         y="Defunciones",
+        color="Sexo",
         markers=True,
-        labels={"Defunciones": "Total Casos"},
+        labels={"Defunciones": "Número de Casos", "Año": "Año de Registro", "Sexo": "Género"},
+        color_discrete_map=COLOR_DISCRETE_MAP,
+    )
+    fig_line.update_layout(
+        xaxis=dict(tickmode='linear', tick0=2019, dtick=1),
+        xaxis_title="Año de Registro",
+        yaxis_title="Número de Casos",
+        legend_title_text="Género"
     )
     st.plotly_chart(fig_line, use_container_width=True)
+    
+    # Texto de apoyo con insight clave (Punto 3)
+    st.caption("📌 **Insight:** La tendencia histórica muestra una brecha persistente entre géneros, permitiendo identificar variaciones anuales en los registros totales de la región.")
 
-# Vista desplegable de la tabla de datos procesados
-with st.expander("📄 Ver Datos Filtrados"):
+st.markdown("---")
+st.caption("Fuente de datos: Instituto Nacional de Estadística y Geografía (INEGI) — Registros de Mortalidad en Colima.")
+
+# Tabla de datos
+with st.expander("📄 Ver Datos Registrados (Tabla Completa)"):
     st.dataframe(df_filtrado, use_container_width=True)
